@@ -1,9 +1,20 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * Laboratory scan intake, local storage outside htdocs, Python OCR bridge,
+ * and authenticated file/preview delivery.
+ *
+ * Troubleshooting quick check:
+ * - "storage folder outside htdocs": check storage_dir in app/config.php or app/config.local.php.
+ * - "Python OCR service is unavailable": start `python ocr/server.py` on 127.0.0.1:8765.
+ * - Large upload rejected before reaching PHP: check upload_max_filesize / post_max_size in php.ini.
+ */
+
 const MAX_SCAN_BYTES = 8 * 1024 * 1024;
 const SCAN_TYPES = ['application/pdf' => 'pdf', 'image/jpeg' => 'jpg', 'image/png' => 'png'];
 
+/** Resolve and validate the private report storage root (must never live inside Apache htdocs). */
 function scan_root(array $config): string
 {
     $folder = $config['storage_dir'];
@@ -22,6 +33,7 @@ function scan_root(array $config): string
     return $root;
 }
 
+/** Build an absolute storage path after strictly validating the generated storage key format. */
 function scan_path(array $config, string $key): string
 {
     if (!preg_match('/\A[a-f0-9]{36}\.(pdf|jpg|png)\z/', $key)) {
@@ -30,6 +42,10 @@ function scan_path(array $config, string $key): string
     return scan_root($config) . DIRECTORY_SEPARATOR . $key;
 }
 
+/**
+ * Validate an uploaded file (or bundled demo sample) and move it into private storage.
+ * Checks PHP upload errors, 8 MB size limit, real MIME type via finfo, and image pixel bounds.
+ */
 function stage_scan(array $config, bool $sample): array
 {
     if ($sample) {
@@ -37,23 +53,38 @@ function stage_scan(array $config, bool $sample): array
         $name = 'northstar-report.pdf';
     } else {
         $file = $_FILES['report_file'] ?? null;
-        if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK
-            || !is_string($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
-            throw new RuntimeException('Choose a PDF, JPG, or PNG file up to 8 MB.');
+        if (!is_array($file)) {
+            throw new RuntimeException('Choose a PDF, JPG, or PNG file, or capture a page with your camera.');
+        }
+        $uploadError = $file['error'] ?? UPLOAD_ERR_NO_FILE;
+        if ($uploadError === UPLOAD_ERR_INI_SIZE || $uploadError === UPLOAD_ERR_FORM_SIZE) {
+            throw new RuntimeException('This file exceeds the 8 MB upload limit. Split the report or scan at a lower resolution and try again.');
+        }
+        if ($uploadError === UPLOAD_ERR_NO_FILE) {
+            throw new RuntimeException('Choose a PDF, JPG, or PNG file, or capture a page with your camera.');
+        }
+        if ($uploadError !== UPLOAD_ERR_OK || !is_string($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
+            throw new RuntimeException('The file upload could not be completed. Try again with a PDF, JPG, or PNG file up to 8 MB.');
         }
         $original = $file['tmp_name'];
         $name = basename(str_replace('\\', '/', (string)$file['name']));
         $name = substr(preg_replace('/[^a-zA-Z0-9. _-]/', '_', $name) ?? '', 0, 140) ?: 'report';
     }
     $size = filesize($original);
+    if ($size === false || $size < 1) {
+        throw new RuntimeException('Try again. The selected file is empty.');
+    }
+    if ($size > MAX_SCAN_BYTES) {
+        throw new RuntimeException('This file exceeds the 8 MB upload limit. Split the report or scan at a lower resolution and try again.');
+    }
     $mime = (new finfo(FILEINFO_MIME_TYPE))->file($original);
-    if ($size === false || $size < 1 || $size > MAX_SCAN_BYTES || !isset(SCAN_TYPES[$mime])) {
-        throw new RuntimeException('Choose a valid PDF, JPG, or PNG file up to 8 MB.');
+    if (!isset(SCAN_TYPES[$mime])) {
+        throw new RuntimeException('Unsupported file type. Upload a PDF, JPG, or PNG laboratory report.');
     }
     if ($mime !== 'application/pdf') {
         $dims = @getimagesize($original);
         if ($dims === false || min($dims[0], $dims[1]) < 350 || $dims[0] * $dims[1] > 30_000_000) {
-            throw new RuntimeException('Try again with a clear, full-page image between 350 pixels per side and 30 megapixels.');
+            throw new RuntimeException('Try again. Capture or scan the full page clearly (at least 350 pixels per side and under 30 megapixels).');
         }
     }
     $key = bin2hex(random_bytes(18)) . '.' . SCAN_TYPES[$mime];
@@ -78,6 +109,16 @@ function delete_scan(array $config, array $scan): void
     }
 }
 
+/**
+ * Send a staged scan to the local Python OCR service (POST /extract).
+ *
+ * Contract with ocr/server.py:
+ * - HTTP 200: returns {fields, results, warnings, engine, optional preview_png}.
+ * - HTTP 422 with retry=true: unreadable/blurry/blank/over-5-page file -> throws RuntimeException
+ *   so actions.php deletes the staged scan and prompts the user to retake/re-upload.
+ * - Connection failure / non-retry error: falls back to engine='manual' with a warning so
+ *   clinic staff can still enter results manually beside the attached original.
+ */
 function read_scan(array $config, array $scan): array
 {
     $fallback = ['fields' => [], 'results' => [], 'warnings' => [], 'engine' => 'manual'];
@@ -93,14 +134,14 @@ function read_scan(array $config, array $scan): array
         CURLOPT_HTTPHEADER => ['Content-Type: ' . $scan['mime'], 'Expect:'],
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CONNECTTIMEOUT => 2,
-        CURLOPT_TIMEOUT => 40,
+        CURLOPT_TIMEOUT => 60,
         CURLOPT_FOLLOWLOCATION => false,
     ]);
     $result = curl_exec($handle);
     $status = curl_getinfo($handle, CURLINFO_HTTP_CODE);
     curl_close($handle);
     if (!is_string($result)) {
-        $fallback['warnings'][] = 'The Python service is offline. Run python ocr/server.py, or enter the results manually.';
+        $fallback['warnings'][] = 'The local Python OCR service is unavailable. Start python ocr/server.py or compare the original and enter the results manually.';
         return $fallback;
     }
     $decoded = json_decode($result, true);
@@ -136,7 +177,12 @@ function sample_draft(): array
     ];
 }
 
-function deliver_scan(array $config, array $report, bool $preview): never
+/**
+ * Stream an attached original scan or rendered PDF page-1 preview after public/index.php
+ * has verified session role and record ownership.
+ * When $inline is true for a PDF, frame-ancestors 'self' allows the review screen's fallback iframe.
+ */
+function deliver_scan(array $config, array $report, bool $preview, bool $inline = false): never
 {
     if (!$report['storage_key'] || !isset(SCAN_TYPES[$report['source_mime']])) {
         problem(404, 'No source file is attached to this report.');
@@ -150,8 +196,11 @@ function deliver_scan(array $config, array $report, bool $preview): never
     if (!is_file($path)) {
         problem(404, 'The original or preview could not be found.');
     }
+    if ($mime === 'application/pdf' && $inline) {
+        header("Content-Security-Policy: default-src 'self'; frame-ancestors 'self'; base-uri 'none'");
+    }
     header('Content-Type: ' . $mime);
-    $disposition = $mime === 'application/pdf' ? 'attachment' : 'inline';
+    $disposition = ($mime === 'application/pdf' && !$inline) ? 'attachment' : 'inline';
     header('Content-Disposition: ' . $disposition . '; filename="laboratory-source.' . SCAN_TYPES[$mime] . '"');
     header('Content-Length: ' . filesize($path));
     readfile($path);

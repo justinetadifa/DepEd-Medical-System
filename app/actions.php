@@ -1,12 +1,18 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * Central POST form handler for authenticated workspaces.
+ * CSRF validation runs in public/index.php before this file is required.
+ */
+
 if ($action === 'logout') {
     $_SESSION = [];
     session_destroy();
     redirect('login');
 }
 
+// Server-side action allowlist per role: ICT is read-only; personnel cannot approve or edit clinic records.
 $permitted = match ($user['role']) {
     'personnel' => ['upload', 'sample', 'save_profile'],
     'ict' => [],
@@ -18,8 +24,10 @@ if (!in_array($action, $permitted, true)) {
 }
 
 $actor = (int)$user['id'];
+// Personnel actions are always pinned to their own linked employee_id; POSTed employee_id is ignored.
 $targetEmployee = $ownId ?? (int)post('employee_id');
 
+// --- Lab report intake (file/camera upload, demo sample, or manual clinic entry) ---
 if (in_array($action, ['upload', 'sample', 'new_manual'], true)) {
     $scan = null;
     try {
@@ -35,6 +43,7 @@ if (in_array($action, ['upload', 'sample', 'new_manual'], true)) {
                 throw new DomainException('The sample belongs to Mara Santos (DEMO-0147).');
             }
             $scan = stage_scan($config, $sample);
+            // Block duplicate uploads per employee using the file's SHA-256 hash.
             $duplicate = row($db, 'SELECT id FROM reports WHERE employee_id = ? AND source_hash = ?', [$targetEmployee, $scan['hash']]);
             if ($duplicate) {
                 delete_scan($config, $scan);
@@ -42,6 +51,7 @@ if (in_array($action, ['upload', 'sample', 'new_manual'], true)) {
                 redirect('report', ['id' => $duplicate['id']]);
             }
             $extraction = read_scan($config, $scan);
+            // In demo mode with Python offline, still let the practice sample populate sample values.
             if ($sample && $extraction['engine'] === 'manual') {
                 $extraction = sample_draft();
             }
@@ -53,6 +63,7 @@ if (in_array($action, ['upload', 'sample', 'new_manual'], true)) {
     } catch (PDOException $error) {
         if ($scan) {
             delete_scan($config, $scan);
+            // Handle concurrent duplicate upload caught by the UNIQUE(employee_id, source_hash) index.
             $duplicate = row($db, 'SELECT id FROM reports WHERE employee_id = ? AND source_hash = ?', [$targetEmployee, $scan['hash']]);
             if ($duplicate) {
                 flash('This file is already attached to a report.');
@@ -61,14 +72,26 @@ if (in_array($action, ['upload', 'sample', 'new_manual'], true)) {
         }
         flash('The report could not be saved. Try again.', 'error');
     } catch (DomainException|RuntimeException $error) {
+        // Always delete staged files when validation or retake checks fail so no orphans remain on disk.
         if ($scan) {
             delete_scan($config, $scan);
         }
         flash($error->getMessage(), 'error');
     }
-    redirect('intake', ['employee' => $targetEmployee, 'year' => (int)post('ape_year') ?: date('Y')]);
+    // Preserve selected employee and APE year (including intentionally blank clinic APE year) on retry.
+    $submittedYear = post('ape_year');
+    $_SESSION['form_input'] = [
+        'form' => 'intake',
+        'data' => ['employee_id' => $targetEmployee, 'ape_year' => $submittedYear],
+    ];
+    $retryParams = ['employee' => $targetEmployee];
+    if ($submittedYear !== '') {
+        $retryParams['year'] = $submittedYear;
+    }
+    redirect('intake', $retryParams);
 }
 
+// --- Clinic review: save draft edits or approve Pending -> Submitted ---
 if ($action === 'save_report') {
     $id = (int)post('report_id');
     $revision = (int)post('edit_version');

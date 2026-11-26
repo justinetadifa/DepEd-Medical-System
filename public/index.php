@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * Front controller for DepEd Employee Health.
+ * Enforces localhost-only access, security headers/CSP, session authentication,
+ * CSRF checks, role-based page routing, and server-side record ownership checks.
+ */
+
+// Restrict the local XAMPP app to loopback connections only.
 if (!in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1', '::ffff:127.0.0.1'], true)) {
     http_response_code(403);
     exit('Open this local starter with http://localhost on the computer running XAMPP.');
@@ -8,6 +15,7 @@ if (!in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1', '::ffff:127.0.
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
+// Allow camera only on same origin (required for live document capture); blob: is allowed for still-image previews.
 header('Permissions-Policy: camera=(self), microphone=()');
 header("Content-Security-Policy: default-src 'self'; img-src 'self' blob:; media-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'");
 session_name('deped_medical_v2');
@@ -52,7 +60,7 @@ $action = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' ? post('action') : ''
 if ($action !== '') {
     check_csrf();
 } elseif (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && empty($_POST) && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
-    problem(413, 'The upload exceeded the PHP request limit. Choose a smaller file or check max upload size in php.ini.');
+    problem(413, 'This file exceeds the 8 MB upload limit or PHP post_max_size. Choose a smaller PDF, JPG, or PNG file.');
 }
 if (!$user) {
     require $app . '/signin.php';
@@ -72,6 +80,7 @@ if ($action !== '') {
     require $app . '/actions.php';
 }
 
+// Server-side page allowlist per role: ICT is restricted to the user directory ('accounts').
 $available = match ($user['role']) {
     'personnel' => ['health', 'profile', 'reports', 'report', 'intake', 'source', 'print_result'],
     'ict' => ['accounts'],
@@ -82,6 +91,7 @@ if (!in_array($page, $available, true)) {
     problem(403, 'This page is unavailable in your workspace.');
 }
 
+// Enforce record ownership and pending-source visibility on the server before rendering or streaming files.
 if (in_array($page, ['report', 'review', 'source', 'print_result'], true)) {
     $report = report_by_id($db, $id);
     if (!$report || ($ownId !== null && (int)$report['employee_id'] !== $ownId)) {
@@ -94,7 +104,7 @@ if (in_array($page, ['report', 'review', 'source', 'print_result'], true)) {
         $report['storage_key'] = null;
     }
     if ($page === 'source') {
-        deliver_scan($config, $report, query('preview') === '1');
+        deliver_scan($config, $report, query('preview') === '1', query('inline') === '1');
     }
     if ($page === 'review' && $report['review_status'] !== 'needs_review') {
         redirect('report', ['id' => $id]);

@@ -18,6 +18,7 @@ $back = match ($page) {
 <head>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= h($printTitle) ?></title>
+    <link rel="icon" type="image/png" href="assets/medical-logo.png">
     <link rel="stylesheet" href="assets/font.css">
     <link rel="stylesheet" href="assets/print.css">
     <script src="assets/app.js" defer></script>
@@ -29,7 +30,10 @@ $back = match ($page) {
     </nav>
     <main class="print-sheet">
         <header class="print-header">
-            <div><strong>Department of Education · Regional Office I</strong><span>Employee health records</span></div>
+            <div class="print-brand">
+                <img class="print-logo" src="assets/medical-logo.png" alt="DepEd Regional Office I Employee Health Portal logo">
+                <div><strong>Department of Education · Regional Office I</strong><span>Employee health records</span></div>
+            </div>
             <p>Confidential</p>
         </header>
         <h1><?= h($printTitle) ?></h1>

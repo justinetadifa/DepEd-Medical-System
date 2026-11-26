@@ -42,10 +42,7 @@ code { font: .94em Consolas, monospace; color: var(--ink); background: var(--bg)
 .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); width: fit-content; flex: none; }
 .brand strong { display: block; font-size: 1.1rem; line-height: 1.16; font-weight: 800; letter-spacing: -.043em; }
 .brand small { display: block; margin-top: 2px; font-size: .76rem; }
-.brand-mark { position: relative; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--accent); flex: none; }
-.brand-mark::before, .brand-mark::after { content: ""; grid-area: 1 / 1; border-radius: 2px; background: white; }
-.brand-mark::before { width: 3px; height: 16px; }
-.brand-mark::after { width: 16px; height: 3px; }
+.brand-logo { display: block; height: 46px; width: auto; max-width: 56px; object-fit: contain; flex: none; }
 .workspace-name { color: var(--subtle); font-size: .85rem; font-weight: 600; border-left: 1px solid var(--line); padding-left: 22px; }
 .topbar-tools { margin-inline-start: auto; display: flex; align-items: center; gap: 14px; min-width: 0; }
 .topbar-account { display: flex; align-items: center; gap: 8px; min-width: 0; line-height: 1.25; }
@@ -131,8 +128,15 @@ input::placeholder { color: var(--subtle); }
 input[type=file]::file-selector-button { font: inherit; font-weight: 650; color: var(--accent-dark); background: var(--accent-fill); border: 0; border-radius: 6px; padding: 5px 8px; margin-inline-end: 8px; cursor: pointer; }
 .upload-field { padding: 14px; border-radius: 12px; background: #f6f5fd; border: 1px dashed #b4acd9; gap: 9px; }
 .upload-field small { font-weight: 400; }
-.camera-box { display: grid; gap: 6px; }
+.file-summary { font-size: .84rem; font-weight: 600; color: var(--accent-dark); }
+.camera-box { display: grid; gap: 8px; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: #fafafe; }
 video { width: 100%; max-height: 440px; object-fit: contain; border-radius: 8px; background: var(--rail); }
+.capture-preview { display: grid; gap: 10px; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: #fafafe; }
+.capture-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.capture-preview-head strong { display: block; font-size: .92rem; }
+.capture-frame { border-radius: 8px; overflow: hidden; background: var(--bg); border: 1px solid var(--line); max-height: 420px; display: grid; place-items: center; }
+.capture-frame img { display: block; width: 100%; max-height: 420px; object-fit: contain; }
+input.needs-check { border-color: #d48a28; background: #fffbf4; }
 .panel-title { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 17px 19px; border-bottom: 1px solid var(--line); }
 .original iframe, .image-preview { background: var(--bg); height: min(68vh, 640px); min-height: 380px; width: 100%; border: 0; display: block; overflow: auto; }
 .image-preview img { display: block; width: 100%; object-fit: contain; }
@@ -246,7 +250,7 @@ legend { padding: 0 5px; font-size: .9rem; font-weight: 650; }
   .topbar .brand { gap: 8px; }
   .topbar .brand strong { font-size: 1rem; }
   .topbar .brand small { font-size: .71rem; }
-  .topbar .brand-mark { width: 32px; height: 32px; }
+  .topbar .brand-logo { height: 38px; max-width: 46px; }
   .topbar-account { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .topbar-tools { gap: 4px; }
 }

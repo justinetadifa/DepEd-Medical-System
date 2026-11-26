@@ -24,6 +24,12 @@ function record_event(PDO $db, int $actor, string $kind, int $id, string $event)
         [$actor, $kind, $id, $event]);
 }
 
+/**
+ * Query laboratory reports with optional search, review status filter, and employee scoping.
+ *
+ * Access rule: when $employee is set (personnel view), text search only matches
+ * clinic-approved ('reviewed') reports so unverified OCR drafts are never exposed via search.
+ */
 function report_list(PDO $db, string $search = '', string $status = 'all', ?int $employee = null): array
 {
     $where = [];
@@ -37,11 +43,13 @@ function report_list(PDO $db, string $search = '', string $status = 'all', ?int 
         $params[] = $status;
     }
     if ($search !== '') {
-        $matches = '(r.report_no LIKE ? OR r.laboratory LIKE ?
-            OR EXISTS (SELECT 1 FROM report_results t WHERE t.report_id = r.id AND (t.test_name LIKE ? OR t.result_value LIKE ?)))';
+        $matches = "(r.report_no LIKE ? OR r.laboratory LIKE ?
+            OR EXISTS (SELECT 1 FROM report_results t WHERE t.report_id = r.id
+                AND (t.test_name LIKE ? OR t.result_value LIKE ? OR t.unit LIKE ?
+                    OR CONCAT(t.result_value, ' ', t.unit) LIKE ?)))";
         $where[] = $employee === null ? '(e.full_name LIKE ? OR e.employee_no LIKE ? OR ' . $matches . ')'
             : "(r.review_status = 'reviewed' AND {$matches})";
-        $params = array_merge($params, array_fill(0, $employee === null ? 6 : 4, '%' . $search . '%'));
+        $params = array_merge($params, array_fill(0, $employee === null ? 8 : 6, '%' . $search . '%'));
     }
     $filter = $where ? ' WHERE ' . implode(' AND ', $where) : '';
     return rows($db, 'SELECT r.*, e.full_name, e.office, e.employee_no,
@@ -73,6 +81,7 @@ function replace_result_rows(PDO $db, int $id, array $tests): void
     }
 }
 
+/** Insert a new Pending ('needs_review') report, its extracted test rows, and a 'created' audit event. */
 function create_report(PDO $db, int $employeeId, ?int $year, int $actor, ?array $scan, array $extraction): int
 {
     $fields = $extraction['fields'];
@@ -99,6 +108,10 @@ function create_report(PDO $db, int $employeeId, ?int $year, int $actor, ?array 
     }
 }
 
+/**
+ * Persist clinic edits to a Pending report and optionally approve it ('reviewed' / Submitted).
+ * Uses optimistic locking on edit_version so two reviewers cannot silently overwrite each other.
+ */
 function save_report(PDO $db, int $id, int $revision, array $details, array $tests, int $actor, bool $approve): void
 {
     $db->beginTransaction();
@@ -122,6 +135,7 @@ function save_report(PDO $db, int $id, int $revision, array $details, array $tes
     }
 }
 
+/** Record receipt of the physical paper original independently of digital review_status. */
 function receive_original(PDO $db, int $id, int $actor): void
 {
     $db->beginTransaction();

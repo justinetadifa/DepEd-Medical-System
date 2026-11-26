@@ -41,6 +41,8 @@ if ($shell) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= h($title) ?> · Employee Health</title>
+    <!-- Global system logo used as favicon and brand mark across all workspaces and print views -->
+    <link rel="icon" type="image/png" href="assets/medical-logo.png">
     <link rel="stylesheet" href="assets/font.css">
     <link rel="stylesheet" href="assets/app.css">
     <?php if (!$shell): ?>
@@ -55,7 +57,7 @@ if ($shell) {
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="topbar">
         <a href="<?= h(url($home)) ?>" class="brand">
-            <span class="brand-mark" aria-hidden="true"></span>
+            <img class="brand-logo" src="assets/medical-logo.png" alt="DepEd Regional Office I Employee Health Portal logo">
             <span><strong>Employee Health</strong><small>DepEd · Regional Office I</small></span>
         </a>
         <span class="workspace-name"><?= h($workspace) ?></span>
@@ -88,7 +90,7 @@ if ($shell) {
     <div class="auth-shell">
     <main class="auth">
         <div class="brand auth-brand">
-            <span class="brand-mark" aria-hidden="true"></span>
+            <img class="brand-logo" src="assets/medical-logo.png" alt="DepEd Regional Office I Employee Health Portal logo">
             <span><strong>Employee Health</strong><small>DepEd · Regional Office I</small></span>
         </div>
 <?php endif; ?>
