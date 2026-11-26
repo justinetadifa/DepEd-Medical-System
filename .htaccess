@@ -1,0 +1,8 @@
+Options -Indexes
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(?:app|database|ocr|tools|reference|\.git|\.vscode)(?:/|$) - [F,L,NC]
+</IfModule>
+<FilesMatch "^\.|^README">
+    Require all denied
+</FilesMatch>

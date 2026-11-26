@@ -1,0 +1,232 @@
+.overview-metrics,
+.overview-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.overview-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.overview-grid { grid-template-columns: minmax(0, 1.72fr) minmax(18rem, 1fr); }
+
+.overview-metric {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+  padding: 16px 18px;
+  color: var(--ink);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.overview-metric:hover {
+  border-color: #bfb7f8;
+  box-shadow: 0 5px 18px #2420520c;
+}
+
+.overview-metric-top,
+.overview-panel-heading,
+.overview-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.overview-metric-top,
+.overview-panel-heading { justify-content: space-between; }
+.overview-metric-top { margin-bottom: 9px; }
+
+.overview-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  flex: none;
+  background: #ece8ff;
+  color: #5343c9;
+}
+
+.overview-icon.rose { background: #fce5eb; color: #b84464; }
+.overview-icon.peach { background: #ffecd9; color: #a75a27; }
+.overview-icon.green { background: #dff4e7; color: #227245; }
+.overview-icon .icon { width: 19px; height: 19px; }
+.overview-metric-top > .icon { width: 16px; height: 16px; color: var(--subtle); }
+.overview-metric:hover .overview-metric-top > .icon { color: var(--accent-dark); }
+.overview-metric-label { font-weight: 650; }
+
+.overview-metric > strong {
+  font-size: clamp(1.55rem, 2.7vw, 2rem);
+  letter-spacing: -.045em;
+  line-height: 1.12;
+  font-variant-numeric: tabular-nums;
+}
+
+.overview-metric > strong small {
+  font-weight: 550;
+  font-size: .82rem;
+  letter-spacing: normal;
+}
+
+.overview-activity,
+.overview-calendar,
+.overview-personnel { min-width: 0; }
+
+.overview-panel-heading > .icon { color: var(--subtle); flex: none; }
+.overview-panel-heading p { margin-top: 4px; font-size: .89rem; }
+.overview-panel-heading > .text-link { flex: none; font-size: .88rem; }
+
+.overview-activity {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.overview-chart {
+  --plot-height: 128px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  text-align: center;
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  background: repeating-linear-gradient(to top, var(--line) 0 1px, transparent 1px 25%) no-repeat center 52% / 100% var(--plot-height);
+}
+
+.overview-chart li { min-width: 0; }
+.overview-chart strong { display: block; color: var(--ink); font-size: .88rem; }
+.overview-chart small { display: block; margin-top: 8px; font-size: .76rem; white-space: nowrap; }
+
+.overview-plot {
+  display: grid;
+  place-items: center;
+  height: var(--plot-height);
+  margin-top: 6px;
+  position: relative;
+}
+
+.overview-plot meter {
+  width: var(--plot-height);
+  height: 24px;
+  position: absolute;
+  transform: rotate(-90deg);
+  appearance: none;
+  border: 0;
+  background: #f0edf9;
+  border-radius: 7px;
+}
+
+.overview-plot meter::-webkit-meter-bar {
+  height: 100%;
+  border: 0;
+  border-radius: 7px;
+  background: #f0edf9;
+}
+
+.overview-plot meter::-webkit-meter-optimum-value {
+  border-radius: 7px;
+  background: linear-gradient(90deg, #a594f3, #6554df);
+}
+
+.overview-plot meter::-moz-meter-bar {
+  border-radius: 7px;
+  background: linear-gradient(90deg, #a594f3, #6554df);
+}
+
+.overview-calendar-controls {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  align-items: center;
+  margin: 10px 0 6px;
+  text-align: center;
+}
+
+.overview-calendar-controls strong { grid-area: 1 / 2; font-size: .89rem; }
+.overview-calendar-arrow {
+  display: grid;
+  grid-area: 1 / 1;
+  place-items: center;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.overview-calendar-controls strong + .overview-calendar-arrow { grid-column: 3; }
+.overview-calendar-arrow:hover { background: #ece8ff; color: var(--accent-dark); }
+.overview-calendar-arrow .icon { width: 16px; height: 16px; }
+
+.overview-weekdays,
+.overview-calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  row-gap: 2px;
+  text-align: center;
+}
+
+.overview-weekdays { color: var(--subtle); font-size: .72rem; font-weight: 650; }
+.overview-calendar-days { padding: 0; margin: 4px 0 0; list-style: none; }
+.overview-calendar-days li { display: grid; place-items: center; min-height: 27px; }
+.overview-calendar-days time {
+  display: grid;
+  place-items: center;
+  position: relative;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  font-size: .76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.overview-calendar-days time.has-visits { background: #ece8ff; color: #4838b4; font-weight: 750; }
+.overview-calendar-days time[aria-current="date"] { outline: 1px solid var(--accent); outline-offset: -1px; color: var(--accent-dark); font-weight: 750; }
+
+.overview-calendar-legend {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  color: var(--subtle);
+  font-size: .76rem;
+}
+
+.overview-calendar-legend::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ece8ff;
+  border: 1px solid #aaa0ed;
+}
+
+.overview-personnel .inline-form { flex-wrap: nowrap; }
+.overview-checks { margin: 16px 0 0; }
+.overview-checks > div:last-child { padding-bottom: 0; }
+.overview-consultation .large-value,
+.overview-consultation-empty { margin-top: 15px; }
+
+.overview-followup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: .87rem;
+}
+
+.overview-followup .icon { width: 16px; height: 16px; flex: none; }
+
+@media (max-width: 820px) {
+  .overview-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 620px) {
+  .overview-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .overview-metrics, .overview-grid { gap: 10px; }
+  .overview-metric { padding: 12px; }
+  .overview-metric-top { margin-bottom: 5px; }
+  .overview-chart { --plot-height: 98px; }
+  .overview-chart small { font-size: .69rem; }
+}
+
+@media (max-width: 440px) {
+  .overview-personnel .overview-panel-heading { align-items: flex-start; flex-direction: column; }
+}
